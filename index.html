@@ -14,7 +14,7 @@
  
   Authors in chronological order of contribution:
   Author 1: Timothy E. Riedel
-  Author 2: ?????????
+  Author 2: Nicole Octavio
   
   References:
   http://docs.webplatform.org/wiki/concepts/programming/drawing_images_onto_canvas#Loading_the_image_programmatically
@@ -24,10 +24,13 @@
   http://stackoverflow.com/questions/11929099/html5-canvas-drawimage-ratio-bug-ios
   
   Brief Description of Goal of Code:
-  blah, blah, blah,
+  This app allows the user to load a photo from their device. The original image
+  is displayed on the first canvas. A blue channel only version of the image is
+  then processed and displayed on a second canvas. This simulates
+  a diagnostic app looking for the color blue in a sample image.
  
   Known Issues:
-  blah, blah, blah, blah
+  none as of current
 -->
 
  <head>
@@ -97,28 +100,54 @@
         
           drawImageIOSFix(context,img, 0, 0, img.naturalWidth, img.naturalHeight, 0, 0, 600, 500);
 
+         console.log("Original image drawn to canvas.");
+
           /*  +++++++++++++++ BEGIN IMAGE PROCESSING +++++++++++++++ */
           /*  ++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
           /* PUT ANY CHANGES TO THE JAVASCRIPT HERE  */
-          
-          
-          
-          
+
+         /*--read all pixel data from canvas 1--*/
+         var imageData=context.getImageData(0, 0, 600, 500);
+
+         /*pixels is a reference to the raw RGBA values*/
+         var pixels=imageData.data;
+         console.log("Pixel data read from canvas 1. Total pixel values: " + pixels. length);
+
+        for (var i = 0; i < pixels.length; i += 4) {
+          pixels[i] = 0; i; /*red set to zero (no red) */
+          pixels[i + 1] = 0; /*green set to zero (no green) */
+        }
+        console.log("Pixel transformation complete: red and green channels removed.");
+
+        /* draw the transformed pixel data onto canvas 2*/
+        context2.putImageData(imageData, 0, 0);
+        console.log("Blue-only image written to canvas 2.");
+
+        /*end image processing*/
+
         } // end of img.onload
-        
-        img.src = reader.result;
-      } //  end of reader.onload
-      
-      reader.readAsDataURL(file);
+
+        img.src=reader.result;
+       } // end of reader.onload
+       
+
+        /*read the file as a data URL*/
+        reader.readAsDataUrl(file);
+
+
+ } //end of window.onload
+   
     } // end of the if statement checking that file is an image
     else
     {
       // this is what happens if the orignial file selected is not an image file
       messageDisplayArea.innerHTML = "File not supported!"
+      console.log("Non-image file selected. File type: " + file.type);
     } // end of the else statement if file in NOT an image
   }); // end of the fileInput.addEventListener function
  } // end of the window.onload function
+  
  </script>
  </head>
 
@@ -132,16 +161,30 @@
         Press orange button to create or choose image file:
         <input type="file" id="fileInput" STYLE="background-color: #FF6600;">
       </div>
+     <!-- This div will show status messages like "You picked an image!" -->
       <div id="messageDisplayArea"></div>
-      
+     
+       <!-- CANVAS 1: Displays the original, unmodified image loaded by the user. -->
       <canvas id="myCanvas" width=600 height=500 style="border:1px solid #d3d3d3;"></canvas>
-      <script> /* This script initiates the cavas and puts the text on the canvas "myCanvas" */
+      <script> /* This script initiates the canvas and puts the text on the canvas "myCanvas" */
         var canvas = document.getElementById('myCanvas');
         var context = canvas.getContext("2d");
         context.font = '20pt Calibri';
         context.fillStyle = "black";
         context.fillText("Original image will go here", 10, 20);
       </script>
+          <!-- canvas2: displays only the blue channel of the loaded image. -->
+     <canvas id="dataCanvas" width=600 height=500 style="border:1px solid #d3d3d3;"></canvas>
+
+     <script>
+        /*starts canvas 2 and use placeholder text.*/
+       var canvas2=document.getElementById('dataCanvas'); /*canvas2 and context2 keep variables separate 
+       from canvas and context which belong to canvas 1.*/
+       var context2=canvas2.getContext("2d");
+       context2.font='20pt Calibri';
+       context2.fillStyle="blue";
+       context2.fillText("Blue channel analysis will go here", 10, 20);
+     </script>
 
     </div><!-- /content -->
     <div data-role="footer" data-position="fixed">
