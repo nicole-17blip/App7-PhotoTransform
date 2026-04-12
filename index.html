@@ -162,7 +162,8 @@
       <div id="messageDisplayArea"></div>
      
        <!-- CANVAS 1: Displays the original, unmodified image loaded by the user. -->
-      <canvas id="myCanvas" width=600 height=500 style="border:1px solid #d3d3d3;"></canvas>
+      <p><strong>Canvas 1: Original Image</strong></p>
+      <canvas id="myCanvas" width=600 height=500 style="border:3px solid black;"></canvas>
       <script> /* This script initiates the canvas and puts the text on the canvas "myCanvas" */
         var canvas = document.getElementById('myCanvas');
         var context = canvas.getContext("2d");
@@ -171,7 +172,8 @@
         context.fillText("Original image will go here", 10, 20);
       </script>
           <!-- canvas2: displays only the blue channel of the loaded image. -->
-     <canvas id="dataCanvas" width=600 height=500 style="border:1px solid #d3d3d3;"></canvas>
+     <p><strong>Canvas 2: Blue Channel Analysis</strong></p>
+     <canvas id="dataCanvas" width=600 height=500 style="border:3px solid blue;"></canvas>
 
      <script>
         /*starts canvas 2 and use placeholder text.*/
