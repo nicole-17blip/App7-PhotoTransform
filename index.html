@@ -161,8 +161,10 @@
      <!-- This div will show status messages like "You picked an image!" -->
       <div id="messageDisplayArea"></div>
      
+   <div style="display:flex; gap:10px;"> <!--make the canvases go side by side-->
+       <div>
        <!-- CANVAS 1: Displays the original, unmodified image loaded by the user. -->
-      <p><strong>Canvas 1: Original Image</strong></p>
+      <p><strong>Canvas 1: Original Image</strong></p> <!--makes border bolder-->
       <canvas id="myCanvas" width=600 height=500 style="border:3px solid black;"></canvas>
       <script> /* This script initiates the canvas and puts the text on the canvas "myCanvas" */
         var canvas = document.getElementById('myCanvas');
@@ -171,8 +173,11 @@
         context.fillStyle = "black";
         context.fillText("Original image will go here", 10, 20);
       </script>
+     </div>
+
+    <div>
           <!-- canvas2: displays only the blue channel of the loaded image. -->
-     <p><strong>Canvas 2: Blue Channel Analysis</strong></p>
+     <p><strong>Canvas 2: Blue Channel Analysis</strong></p> <!--makes border bolder-->
      <canvas id="dataCanvas" width=600 height=500 style="border:3px solid blue;"></canvas>
 
      <script>
@@ -184,8 +189,9 @@
        context2.fillStyle="blue";
        context2.fillText("Blue channel analysis will go here", 10, 20);
      </script>
+    </div>
 
-    </div><!-- /content -->
+   </div><!-- /content -->
     <div data-role="footer" data-position="fixed">
       <p>DIY Diagnostics</p>
     </div><!-- /footer -->
