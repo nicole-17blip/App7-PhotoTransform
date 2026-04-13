@@ -161,7 +161,7 @@
      <!-- This div will show status messages like "You picked an image!" -->
       <div id="messageDisplayArea"></div>
      
-   <div style="display:flex; gap:10px;"> <!--make the canvases go side by side-->
+   <div style="display:flex; gap:10px; overflow-x:auto;"> <!--make the canvases go side by side on computer, helps fit onto phone screen-->
        <div>
        <!-- CANVAS 1: Displays the original, unmodified image loaded by the user. -->
       <p><strong>Canvas 1: Original Image</strong></p> <!--makes border bolder-->
@@ -186,7 +186,7 @@
        from canvas and context which belong to canvas 1.*/
        var context2=canvas2.getContext("2d");
        context2.font='20pt Calibri';
-       context2.fillStyle="blue";
+       context2.fillStyle="blue"; /*fill canvas 2 with blue*/
        context2.fillText("Blue channel analysis will go here", 10, 20);
      </script>
     </div>
