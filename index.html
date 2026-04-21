@@ -34,14 +34,14 @@ EDUCATIONAL ONLY
 <h3 id="tubeCount"></h3>
 
 <script>
-// grab elements
+// these are each of the elements we are working with
 const upload = document.getElementById("upload");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const resultText = document.getElementById("result");
 const tubeText = document.getElementById("tubeCount");
 
-// load image
+// this is the part that we load in the image = upload image button
 upload.addEventListener("change", function(event){
     const file = event.target.files[0];
     const reader = new FileReader();
@@ -58,7 +58,7 @@ upload.addEventListener("change", function(event){
 });
 
 
-// MAIN ANALYSIS FUNCTION
+// this is the main part of the code that identifies the pixels
 function analyzeImage(){
 
     const imageData = ctx.getImageData(0,0,500,350);
@@ -69,10 +69,10 @@ function analyzeImage(){
     let yellowPixels = 0;
     let validPixels = 0;
 
-    // array to track yellow per column (tube finder!)
+    // this is the code that counts the number of tubes and recognizes the colors
     let yellowColumnHits = new Array(width).fill(0);
 
-    // scan every pixel
+    // scan every pixel to be the colors of yellow or pink 
     for(let y=0; y<height; y++){
         for(let x=0; x<width; x++){
 
@@ -81,13 +81,13 @@ function analyzeImage(){
             let g = pixels[i+1];
             let b = pixels[i+2];
 
-            // ignore gray/white background
+            // this part looks the detection of background and explains how you need to ignore it
             let colorStrength = Math.max(r,g,b) - Math.min(r,g,b);
             if(colorStrength < 40) continue;
 
             validPixels++;
 
-            // YELLOW DETECTION (POSITIVE)
+            // YELLOW DETECTION (POSITIVE) = this looks at any yellow detection and counts it as postive
             if(r > 160 && g > 160 && b < 140){
                 yellowPixels++;
                 yellowColumnHits[x]++; // mark this column as yellow
