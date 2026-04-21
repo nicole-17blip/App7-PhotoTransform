@@ -34,13 +34,13 @@
 
 <!-- IMAGE UPLOAD BUTTON -->
 <input type="file" id="upload">
-
 <br><br>
 
 <!-- CANVAS TO SHOW IMAGE -->
 <canvas id="canvas" width="500" height="350"></canvas>
 
 <h2 id="result"></h2>
+<h3 id+"tubeCount"></h3>
 
 <script>
 // =========================================================
@@ -53,22 +53,19 @@ const upload = document.getElementById("upload");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const resultText = document.getElementById("result");
+const tubeText = document.getElementById("tubeCount");
 
 // when user selects an image
 upload.addEventListener("change", function(event){
-
     // get uploaded file
     const file = event.target.files[0];
     const reader = new FileReader();
-
     // load image into browser
     reader.onload = function(e){
         const img = new Image();
         img.onload = function(){
-
             // draw image onto canvas
             ctx.drawImage(img, 0, 0, 500, 350);
-
             // analyze colors after drawing
             analyzeImage();
         }
@@ -88,31 +85,45 @@ function analyzeImage(){
     const imageData = ctx.getImageData(0,0,500,350);
     const pixels = imageData.data;
 
-    let totalRed = 0;
-    let totalYellow = 0;
-    let pixelCount = pixels.length / 4;
+    let yellowPixels = 0;
+    let pinkPixels = 0;
 
     // loop through every pixel
     for(let i=0; i<pixels.length; i+=4){
-        totalRed += pixels[i];     // red channel
-        totalYellow += pixels[i+1]; // yellow channel
+      let r = pixels[i]; //red
+      let g = pixels[i+1];  //green
+      let b = pixels[i+2]; //blue
+
+    //yellow=high red + high green
+      if(r > 180 && g > 180 && b < 150){
+         yellowPixels++;
     }
 
-    // calculate averages
-    let avgRed = totalRed / pixelCount;
-    let avgYellow = totalYellow / pixelCount;
-
-    // compare colors
-    let difference = avgRed - avgYellow;
-//pink to yellow = postive amplification meaning THERE Is a presence 
-    // determine result
-    if(difference > 20){
-        resultText.innerHTML = "RESULT: NEGATIVE (Pink detected)";
-        resultText.style.color = "red";
-    } else {
-        resultText.innerHTML = "RESULT: POSITIVE (Yellow detected)";
-        resultText.style.color = "Yellow";
+    //pink = high red + low green
+    if(r > 180 && g < 150 && b > 120){
+         pinkPixels++;
     }
+}
+
+   // compare counts
+ if(pinkPixels > yellowPixels){
+     resultText.innerHTML = "RESULT: POSITIVE (Pink detected)";
+     resultText.style.color = "red";
+   } else {
+     resultText.innerHTML = "RESULT: NEGATIVE (YELLOW DETECTED)";
+     resultText.style.color = "green";
+}
+ 
+  let totalPixels = yellowPixels + pinkPixels;
+  let pinkRatio = pinkPixels / totalPixels;
+
+  let estimatedPositiveTubes = Math.round(pinkRatio * 8);
+  let estimatedNegativeTubes = 8 - estimatedPositiveTubes;
+
+ tubeText.innerHTML =
+        "Estimated Positive Tubes: " + estimatedPositiveTubes +
+        " | Estimated Negative Tubes: " + estimatedNegativeTubes;
+
 }
 
 </script>
