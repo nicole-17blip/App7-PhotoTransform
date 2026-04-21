@@ -1,593 +1,120 @@
 <!DOCTYPE html>
 <html lang="en">
 
-<!--
-  ============================================================
-  HEADER COMMENTS
-  ============================================================
-  The following code has been developed by students and/or
-  researchers of the Freshman Research Initiative, DIY
-  Diagnostics Stream at The University of Texas at Austin.
-  This code is shared for demonstration purposes and should
-  not be considered a product -- it is for entertainment
-  purposes only. Any user of this code does so at their own
-  risk. Members of the DIY Stream, FRI, and The University
-  of Texas system are not liable for anything related to
-  this code.
+<!-- =========================================================
+ SIMPLE LAMP COLOR ANALYZER (GitHub Version)
+ -------------------------------------------------------------
+ This app:
+ 1) Lets user upload an image
+ 2) Reads pixels from the image
+ 3) Compares RED vs GREEN color levels
+ 4) Outputs POSITIVE / NEGATIVE result
 
-  THIS CODE SHOULD NOT BE USED TO DIAGNOSE ANY KIND OF
-  MEDICAL CONDITION.
+ LAMP rule used:
+   Pink  = Positive  (more RED than GREEN)
+   Yellow = Negative (RED and GREEN similar)
 
-  Further Information:
-  http://cns.utexas.edu/fri
+ EDUCATIONAL USE ONLY – NOT A MEDICAL TOOL
+========================================================= -->
 
-  Research Educator:
-  Timothy E. Riedel
-  triedel@utexas.edu
+<head>
+<meta charset="UTF-8">
+<title>Simple LAMP Analyzer</title>
 
-  Authors in chronological order of contribution:
-  Author 1: Timothy E. Riedel
-  Author 2: Nicole Octavio
+<style>
+  body { font-family: Arial; text-align:center; margin:40px; }
+  canvas { border:2px solid black; margin-top:10px; }
+</style>
+</head>
 
-  References:
-  http://docs.webplatform.org/wiki/concepts/programming/drawing_images_onto_canvas#Loading_the_image_programmatically
-  http://www.html5rocks.com/en/tutorials/file/dndfiles/
-  http://www.w3.org/TR/FileAPI/
-  http://mobilehtml5.org/
-  http://stackoverflow.com/questions/11929099/html5-canvas-drawimage-ratio-bug-ios
-  https://www.neb.com/en-us/products/m1804-warmstart-colorimetric-lamp-2x-master-mix-with-udg
+<body>
 
-  Brief Description of Goal of Code:
-  This app allows the user to load a photo from their device.
-  The original image is displayed on the first canvas.
-  A blue-channel-only version of the image is processed and
-  displayed on a second canvas. The app then calculates the
-  average blue intensity of the image and compares it to the
-  average red intensity to produce a diagnostic determination.
-  A LAMP colorimetric test turns PINK/MAGENTA for a POSITIVE
-  result and stays YELLOW for a NEGATIVE result. By comparing
-  blue vs. red channel averages, the app can estimate whether
-  the sample is more likely positive or negative.
+<h1>LAMP Image Analyzer</h1>
+<p>Upload a photo of test tubes.</p>
 
-  Known Issues:
-  None as of current version.
-  ============================================================
--->
+<!-- IMAGE UPLOAD BUTTON -->
+<input type="file" id="upload">
 
- <head>
-  <!-- charset tells the browser to use UTF-8 text encoding -->
-  <meta charset="utf-8">
+<br><br>
 
-  <!-- title shown in the browser tab -->
-  <title>LAMP Diagnostic Analyzer</title>
+<!-- CANVAS TO SHOW IMAGE -->
+<canvas id="canvas" width="500" height="350"></canvas>
 
-  <!-- viewport tag makes the page scale properly on mobile devices -->
-  <meta name="viewport" content="width=device-width, initial-scale=.7">
+<h2 id="result"></h2>
 
-  <!-- apple-mobile-web-app-capable allows the app to run full-screen
-       when saved to the iOS home screen -->
-  <meta name="apple-mobile-web-app-capable" content="yes">
+<script>
+// =========================================================
+// MAIN PROGRAM
+// Runs when user uploads an image
+// =========================================================
 
-  <!-- jQuery Mobile CSS provides the mobile-friendly styling and
-       UI components like headers, footers, and buttons -->
-  <link rel="stylesheet" href="https://code.jquery.com/mobile/1.3.2/jquery.mobile-1.3.2.min.css" />
+// get HTML elements
+const upload = document.getElementById("upload");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const resultText = document.getElementById("result");
 
-  <!-- jQuery core library -- required before jQuery Mobile -->
-  <script src="https://code.jquery.com/jquery-1.9.1.min.js"></script>
+// when user selects an image
+upload.addEventListener("change", function(event){
 
-  <!-- jQuery Mobile JS adds touch-friendly interactions and
-       mobile page transitions -->
-  <script src="https://code.jquery.com/mobile/1.3.2/jquery.mobile-1.3.2.min.js"></script>
+    // get uploaded file
+    const file = event.target.files[0];
+    const reader = new FileReader();
 
-  <!-- ============================================================
-       INLINE STYLES
-       Extra CSS rules to style the results box and layout
-       beyond what jQuery Mobile provides by default.
-       ============================================================ -->
-  <style>
-    /* resultsBox styles the diagnostic output panel shown after
-       the user loads an image. Hidden by default until analysis runs. */
-    #resultsBox {
-      display: none;              /* hidden until analysis is complete */
-      margin-top: 16px;
-      padding: 14px 18px;
-      border: 3px solid #333;
-      border-radius: 8px;
-      background-color: #f9f9f9;
-      font-family: Courier, monospace; /* monospace font gives a "lab readout" feel */
-      font-size: 15px;
-      line-height: 1.7;
+    // load image into browser
+    reader.onload = function(e){
+        const img = new Image();
+        img.onload = function(){
+
+            // draw image onto canvas
+            ctx.drawImage(img, 0, 0, 500, 350);
+
+            // analyze colors after drawing
+            analyzeImage();
+        }
+        img.src = e.target.result;
+    }
+    reader.readAsDataURL(file);
+});
+
+
+// =========================================================
+// FUNCTION: analyzeImage()
+// Reads every pixel and compares RED vs GREEN
+// =========================================================
+function analyzeImage(){
+
+    // get pixel data from canvas
+    const imageData = ctx.getImageData(0,0,500,350);
+    const pixels = imageData.data;
+
+    let totalRed = 0;
+    let totalGreen = 0;
+    let pixelCount = pixels.length / 4;
+
+    // loop through every pixel
+    for(let i=0; i<pixels.length; i+=4){
+        totalRed += pixels[i];     // red channel
+        totalGreen += pixels[i+1]; // green channel
     }
 
-    /* determinationLabel is the large POSITIVE / NEGATIVE text.
-       Its color is changed dynamically in JavaScript. */
-    #determinationLabel {
-      font-size: 22px;
-      font-weight: bold;
-      margin-top: 8px;
+    // calculate averages
+    let avgRed = totalRed / pixelCount;
+    let avgGreen = totalGreen / pixelCount;
+
+    // compare colors
+    let difference = avgRed - avgGreen;
+
+    // determine result
+    if(difference > 20){
+        resultText.innerHTML = "RESULT: POSITIVE (Pink detected)";
+        resultText.style.color = "red";
+    } else {
+        resultText.innerHTML = "RESULT: NEGATIVE (Yellow detected)";
+        resultText.style.color = "green";
     }
+}
 
-    /* confidenceBar is the outer grey track of the progress bar */
-    #confidenceBar {
-      width: 100%;
-      height: 20px;
-      background: #ddd;
-      border-radius: 10px;
-      margin-top: 8px;
-      overflow: hidden;
-    }
-
-    /* confidenceFill is the colored inner bar; its width is set
-       dynamically in JavaScript based on the blue ratio score */
-    #confidenceFill {
-      height: 100%;
-      width: 0%;
-      background: #0055cc;
-      border-radius: 10px;
-      transition: width 0.6s ease; /* smooth animation when bar fills */
-    }
-  </style>
-
- <script>
-  /* ============================================================
-     LAST MODIFIED LOG
-     Prints the last time this HTML file was saved/modified.
-     Useful for version tracking during development.
-     ============================================================ */
-  var docMod = document.lastModified;
-  console.log("This file last modified: " + docMod);
-
-  /* ============================================================
-     iOS VERTICAL SQUASH FIX
-     iPhones have a known bug where photos displayed on an HTML5
-     canvas element appear vertically compressed ("squished").
-     The two functions below detect and correct for this bug.
-     Source: https://github.com/stomita/ios-imagefile-megapixel
-     ============================================================ */
-
-  /* detectVerticalSquash()
-     Draws the image onto a 1-pixel-wide temporary canvas and
-     scans down the column of pixels to find where the image data
-     actually ends. Returns a ratio (0.0 to 1.0) representing
-     how much of the canvas height is real image vs. blank padding.
-     A ratio of 1 means no squash (normal). Less than 1 means
-     the image is squished and needs correction. */
-  function detectVerticalSquash(img) {
-    var iw = img.naturalWidth;   /* natural pixel width of the image */
-    var ih = img.naturalHeight;  /* natural pixel height of the image */
-
-    /* create a tiny 1xih canvas just to probe pixel alpha values */
-    var canvas = document.createElement('canvas');
-    canvas.width = 1;
-    canvas.height = ih;
-    var ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-
-    /* getImageData returns raw RGBA pixel values for the 1-pixel column */
-    var data = ctx.getImageData(0, 0, 1, ih).data;
-
-    /* binary search for the first row from the bottom where alpha != 0
-       (i.e., where real image content ends and blank padding begins) */
-    var sy = 0;
-    var ey = ih;
-    var py = ih;
-    while (py > sy) {
-      var alpha = data[(py - 1) * 4 + 3]; /* alpha channel of row py */
-      if (alpha === 0) {
-        ey = py; /* still in the blank zone, move upper bound down */
-      } else {
-        sy = py; /* hit real pixels, move lower bound up */
-      }
-      py = (ey + sy) >> 1; /* >> 1 is a fast integer divide by 2 */
-    }
-
-    /* ratio = actual image height / declared canvas height */
-    var ratio = (py / ih);
-    return (ratio === 0) ? 1 : ratio; /* never return 0; default to 1 (no fix) */
-  }
-
-  /* drawImageIOSFix()
-     A drop-in replacement for ctx.drawImage() that corrects the
-     vertical squash bug on iOS. All parameters match the standard
-     9-argument drawImage signature; the fix divides dh by the
-     squash ratio so the image is stretched back to its correct height. */
-  function drawImageIOSFix(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh) {
-    var vertSquashRatio = detectVerticalSquash(img); /* get correction factor */
-    ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh / vertSquashRatio);
-    /* dh / vertSquashRatio undoes the vertical compression */
-  }
-
-  /* ============================================================
-     MAIN APP LOGIC
-     window.onload waits for the entire page to finish loading
-     before running any JavaScript. This prevents errors caused
-     by trying to access HTML elements that don't exist yet.
-     ============================================================ */
-  window.onload = function() {
-
-    /* grab a reference to the file input element so we can
-       listen for when the user selects a photo */
-    var fileInput = document.getElementById('fileInput');
-
-    /* grab a reference to the status message area so we can
-       update it as the app runs */
-    var messageDisplayArea = document.getElementById('messageDisplayArea');
-
-    /* ============================================================
-       FILE INPUT EVENT LISTENER
-       addEventListener('change', ...) fires every time the user
-       picks a new file using the file input button.
-       ============================================================ */
-    fileInput.addEventListener('change', function(e) {
-
-      /* fileInput.files[0] is the first (and usually only) file
-         the user selected */
-      var file = fileInput.files[0];
-
-      /* imageType is a regex that matches any MIME type starting
-         with "image/" (e.g., image/jpeg, image/png) */
-      var imageType = /image.*/;
-
-      /* ============================================================
-         IMAGE FILE CHECK
-         Make sure the user selected an actual image before trying
-         to draw it onto a canvas (non-images would crash the draw).
-         ============================================================ */
-      if (file.type.match(imageType)) {
-
-        /* FileReader is a built-in browser API that reads files
-           from the user's device asynchronously (in the background).
-           We use it to convert the image file into a data URL so
-           we can load it into an Image object. */
-        var reader = new FileReader();
-
-        /* reader.onload fires once FileReader finishes reading the file */
-        reader.onload = function(e) {
-
-          /* Let the user know their image was accepted */
-          messageDisplayArea.innerHTML = "Image loaded! Running analysis...";
-
-          /* new Image() creates a blank JavaScript Image object.
-             We'll point its .src at the data URL to trigger loading. */
-          var img = new Image();
-
-          /* img.onload fires once the browser has fully decoded
-             the image and is ready to draw it */
-          img.onload = function() {
-
-            /* ---------------------------------------------------
-               STEP 1: DRAW ORIGINAL IMAGE ONTO CANVAS 1
-               drawImageIOSFix replaces the standard drawImage call
-               to fix the iPhone vertical-squash camera bug.
-               Parameters: context, image, source x, source y,
-               source width, source height, dest x, dest y,
-               dest width, dest height.
-               --------------------------------------------------- */
-            drawImageIOSFix(
-              context, img,
-              0, 0, img.naturalWidth, img.naturalHeight,
-              0, 0, 600, 500
-            );
-            console.log("Original image drawn to canvas 1.");
-
-            /* ===================================================
-               STEP 2: IMAGE PROCESSING -- EXTRACT BLUE CHANNEL
-               Read every pixel from canvas 1, zero out the red
-               and green channels, and write the result to canvas 2.
-               This isolates the blue signal in the image visually.
-               We also collect all three channel totals here so the
-               diagnostic math in Step 3 has accurate data to work with.
-               =================================================== */
-
-            /* getImageData returns an ImageData object whose .data
-               property is a flat Uint8ClampedArray of RGBA values:
-               [R0, G0, B0, A0, R1, G1, B1, A1, ...] for every pixel
-               in the 600x500 canvas (= 1,200,000 values total) */
-            var imageData = context.getImageData(0, 0, 600, 500);
-            var pixels = imageData.data;
-            console.log("Pixel data read from canvas 1. Total values: " + pixels.length);
-
-            /* Running totals for all three color channels.
-               We need green in addition to red and blue because the
-               key to telling PINK from YELLOW is the green channel:
-                 PINK/MAGENTA = high red, LOW green, low blue
-                 YELLOW       = high red, HIGH green, low blue        */
-            var totalRed   = 0; /* sum of all red channel values   */
-            var totalGreen = 0; /* sum of all green channel values  */
-            var totalBlue  = 0; /* sum of all blue channel values   */
-            var pixelCount = pixels.length / 4; /* total pixel count */
-
-            /* Loop through every pixel, stepping by 4 (one RGBA group at a time).
-               i     = red channel index
-               i + 1 = green channel index
-               i + 2 = blue channel index
-               i + 3 = alpha channel index (we leave alpha unchanged) */
-            for (var i = 0; i < pixels.length; i += 4) {
-
-              /* Accumulate ALL THREE channel values BEFORE zeroing anything,
-                 so the analysis math uses the original unmodified pixel data */
-              totalRed   += pixels[i];      /* add this pixel's red value   */
-              totalGreen += pixels[i + 1];  /* add this pixel's green value */
-              totalBlue  += pixels[i + 2];  /* add this pixel's blue value  */
-
-              /* Zero out red and green channels for the blue-only canvas 2 view */
-              pixels[i]     = 0; /* red   --> 0 */
-              pixels[i + 1] = 0; /* green --> 0 */
-              /* blue (pixels[i + 2]) is left unchanged for the visual display */
-            }
-            console.log("Pixel transformation complete: red and green channels removed.");
-
-            /* Draw the transformed (blue-only) pixel data onto canvas 2 */
-            context2.putImageData(imageData, 0, 0);
-            console.log("Blue-only image written to canvas 2.");
-
-            /* ===================================================
-               STEP 3: DIAGNOSTIC DETERMINATION
-               This is the core analysis. We use average Red, Green,
-               and Blue channel values to distinguish between the two
-               possible LAMP colorimetric results:
-
-               HOW LAMP COLORIMETRIC RESULTS LOOK:
-                 POSITIVE --> sample turns PINK / MAGENTA
-                              RGB signature: HIGH red, LOW green, LOW blue
-                              (the dye indicator is reduced, shifting color pink)
-
-                 NEGATIVE --> sample stays YELLOW / ORANGE
-                              RGB signature: HIGH red, HIGH green, LOW blue
-                              (the dye indicator stays oxidized, staying yellow)
-
-               WHY THE OLD BLUE-ONLY APPROACH FAILED:
-               Both pink and yellow have LOW blue, so checking blue alone
-               cannot distinguish between them. The critical difference is
-               the GREEN channel -- yellow has high green, pink does not.
-
-               NEW APPROACH -- "pinkScore":
-               We compute how "pink" vs "yellow" the image is by measuring
-               how much MORE red there is compared to green.
-                 pinkScore = avgRed - avgGreen
-
-               A large positive pinkScore means red >> green --> PINK/MAGENTA
-               A pinkScore near 0 means red ≈ green --> YELLOW
-               Thresholds (tuned for typical LAMP test images):
-                 pinkScore > 40  --> POSITIVE  (clearly pink/magenta)
-                 pinkScore < 15  --> NEGATIVE  (clearly yellow)
-                 15 to 40        --> INCONCLUSIVE
-               =================================================== */
-
-            /* Compute average channel intensities across all pixels (0-255 scale) */
-            var avgRed   = totalRed   / pixelCount;
-            var avgGreen = totalGreen / pixelCount;
-            var avgBlue  = totalBlue  / pixelCount;
-            console.log("Average Red:   " + avgRed.toFixed(2));
-            console.log("Average Green: " + avgGreen.toFixed(2));
-            console.log("Average Blue:  " + avgBlue.toFixed(2));
-
-            /* pinkScore = how much red exceeds green.
-               Pink/magenta images have high red and suppressed green.
-               Yellow images have both red AND green elevated equally. */
-            var pinkScore = avgRed - avgGreen;
-            console.log("Pink Score (Red - Green): " + pinkScore.toFixed(2));
-
-            /* -----------------------------------------------
-               DETERMINE RESULT LABEL AND COLOR
-               Thresholds based on LAMP colorimetric color logic:
-                 pinkScore > 40  --> POSITIVE  (red dominates over green = pink)
-                 pinkScore < 15  --> NEGATIVE  (red and green balanced = yellow)
-                 15 to 40        --> INCONCLUSIVE (mixed or ambiguous image)
-               ----------------------------------------------- */
-            var determination; /* final result text shown to the user */
-            var resultColor;   /* CSS color used to style the result label */
-            var confidence;    /* 0-100 confidence percentage for the bar */
-
-            if (pinkScore > 40) {
-              /* Red significantly exceeds green -- image is pink/magenta.
-                 This matches the LAMP POSITIVE color signature. */
-              determination = "POSITIVE";
-              resultColor   = "#cc0000"; /* red label for positive result */
-              /* confidence scales with how far pinkScore exceeds the 40 threshold.
-                 Divide by 60 so a pinkScore of 100 gives ~100% confidence. */
-              confidence = Math.min(100, Math.round((pinkScore - 40) / 60 * 100));
-
-            } else if (pinkScore < 15) {
-              /* Red and green are close in value -- image is yellow/orange.
-                 This matches the LAMP NEGATIVE color signature. */
-              determination = "NEGATIVE";
-              resultColor   = "#007700"; /* green label for negative result */
-              /* confidence scales with how far pinkScore is below 15.
-                 A pinkScore of 0 (perfectly balanced red/green) = very confident. */
-              confidence = Math.min(100, Math.round((15 - pinkScore) / 15 * 100));
-
-            } else {
-              /* pinkScore is in the ambiguous middle zone (15-40).
-                 The image may contain a mix of pink and yellow tubes,
-                 or the lighting/color balance makes it hard to classify. */
-              determination = "INCONCLUSIVE";
-              resultColor   = "#996600"; /* amber label for inconclusive */
-              /* confidence = how close we are to either edge of the zone */
-              confidence = Math.min(100, Math.round(Math.max(
-                (pinkScore - 15) / 25,   /* closeness to POSITIVE threshold */
-                (40 - pinkScore) / 25    /* closeness to NEGATIVE threshold */
-              ) * 60));
-            }
-
-            console.log("Determination: " + determination + " | Confidence: " + confidence + "%");
-
-            /* -----------------------------------------------
-               STEP 4: DISPLAY RESULTS TO THE USER
-               Fill in the resultsBox HTML elements with the
-               computed values, then make the box visible.
-               ----------------------------------------------- */
-
-            /* Update the large determination label with result text and color */
-            var detLabel = document.getElementById('determinationLabel');
-            detLabel.innerHTML = "Result: " + determination;
-            detLabel.style.color = resultColor;
-
-            /* Fill in the per-channel numeric readout lines */
-            document.getElementById('avgRedDisplay').innerHTML   = "Avg Red Intensity:   " + avgRed.toFixed(1)   + " / 255";
-            document.getElementById('avgGreenDisplay').innerHTML = "Avg Green Intensity: " + avgGreen.toFixed(1) + " / 255";
-            document.getElementById('avgBlueDisplay').innerHTML  = "Avg Blue Intensity:  " + avgBlue.toFixed(1)  + " / 255";
-            document.getElementById('pinkScoreDisplay').innerHTML = "Pink Score (R-G):    " + pinkScore.toFixed(1) + "  (>40 = positive, <15 = negative)";
-            document.getElementById('confidenceDisplay').innerHTML = "Confidence:          " + confidence + "%";
-
-            /* Animate the confidence progress bar fill width and color */
-            document.getElementById('confidenceFill').style.width      = confidence + "%";
-            document.getElementById('confidenceFill').style.background = resultColor;
-
-            /* Make the results box visible (it starts as display:none) */
-            document.getElementById('resultsBox').style.display = "block";
-
-            /* Update the status message to confirm analysis is done */
-            messageDisplayArea.innerHTML = "Analysis complete.";
-
-          } /* end of img.onload */
-
-          /* Point the Image object at the data URL returned by FileReader.
-             This triggers img.onload once the browser decodes the image. */
-          img.src = reader.result;
-
-        } /* end of reader.onload */
-
-        /* readAsDataURL starts the asynchronous file-reading process.
-           When it finishes, reader.onload fires with the result. */
-        reader.readAsDataURL(file);
-
-      } /* end of the if-statement checking that file is an image */
-      else {
-        /* The user picked a file that is NOT an image (e.g., a PDF or .txt).
-           Display an error message and log the file type for debugging. */
-        messageDisplayArea.innerHTML = "File not supported! Please select an image file.";
-        console.log("Non-image file selected. File type: " + file.type);
-      } /* end of the else block for non-image files */
-
-    }); /* end of fileInput.addEventListener */
-
-  } /* end of window.onload */
-
- </script>
- </head>
-
- <!-- ============================================================
-      HTML BODY
-      Contains all visible page content organized using jQuery
-      Mobile's data-role attributes (page, header, content, footer).
-      ============================================================ -->
- <body>
-
-  <!-- data-role="page" wraps the entire single-page jQuery Mobile view -->
-  <div data-role="page">
-
-    <!-- HEADER: displays the app title at the top of the screen -->
-    <div data-role="header">
-      <h1>LAMP Diagnostic Analyzer</h1>
-    </div><!-- /header -->
-
-    <!-- CONTENT: main body of the app -->
-    <div data-role="content">
-
-      <!-- Instruction text for the user -->
-      <h2>Load a LAMP test image to analyze.</h2>
-
-      <!-- FILE INPUT SECTION
-           The orange-colored file input button lets the user
-           choose a photo from their device's camera roll or files. -->
-      <div>
-        Press orange button to load an image file:
-        <input type="file" id="fileInput" STYLE="background-color: #FF6600;">
-      </div>
-
-      <!-- STATUS MESSAGE AREA
-           Updated by JavaScript to show "Image loaded!", errors, etc. -->
-      <div id="messageDisplayArea"></div>
-
-      <!-- RESULTS BOX
-           Hidden by default. JavaScript makes it visible and fills
-           in the values after analysis runs. -->
-      <div id="resultsBox">
-        <strong>--- DIAGNOSTIC READOUT ---</strong><br>
-        <!-- avgRedDisplay shows the computed average red channel value -->
-        <span id="avgRedDisplay"></span><br>
-        <!-- avgGreenDisplay shows the computed average green channel value -->
-        <span id="avgGreenDisplay"></span><br>
-        <!-- avgBlueDisplay shows the computed average blue channel value -->
-        <span id="avgBlueDisplay"></span><br>
-        <!-- pinkScoreDisplay: Red minus Green is the key LAMP color metric -->
-        <span id="pinkScoreDisplay"></span><br>
-        <!-- confidenceDisplay shows how confident the determination is -->
-        <span id="confidenceDisplay"></span>
-
-        <!-- CONFIDENCE BAR: visual representation of confidence score.
-             The grey outer track and a colored inner fill that animates. -->
-        <div id="confidenceBar">
-          <div id="confidenceFill"></div>
-        </div>
-
-        <!-- DETERMINATION LABEL: the final POSITIVE / NEGATIVE / INCONCLUSIVE
-             result, styled in color dynamically by JavaScript. -->
-        <div id="determinationLabel"></div>
-
-        <!-- Disclaimer reminding the user this is not real medical advice -->
-        <p style="font-size:11px; color:#888; margin-top:8px;">
-          ⚠️ For educational/demonstration purposes only.
-          Not a medical diagnostic tool.
-        </p>
-      </div><!-- /resultsBox -->
-
-      <!-- CANVAS DISPLAY SECTION
-           Both canvases are placed side by side using flexbox so they
-           sit next to each other on desktop and scroll horizontally
-           on narrow mobile screens. overflow-x:auto enables the
-           horizontal scroll on phones without breaking the layout. -->
-      <div style="display:flex; gap:10px; overflow-x:auto;">
-
-        <!-- CANVAS 1 CONTAINER -->
-        <div>
-          <!-- Label above canvas 1 -->
-          <p><strong>Canvas 1: Original Image</strong></p>
-          <!-- Canvas 1: displays the unmodified user photo.
-               Black border to clearly frame it. 600x500 matches
-               the dimensions used in the drawImage call above. -->
-          <canvas id="myCanvas" width=600 height=500 style="border:3px solid black;"></canvas>
-          <script>
-            /* Initialize canvas 1: get drawing context and write placeholder text
-               so the user knows where the image will appear before they load one. */
-            var canvas = document.getElementById('myCanvas');
-            var context = canvas.getContext("2d"); /* 2d context used for all drawing */
-            context.font = '20pt Calibri';
-            context.fillStyle = "black";
-            context.fillText("Original image will go here", 10, 20);
-          </script>
-        </div><!-- /canvas 1 container -->
-
-        <!-- CANVAS 2 CONTAINER -->
-        <div>
-          <!-- Label above canvas 2 -->
-          <p><strong>Canvas 2: Blue Channel Analysis</strong></p>
-          <!-- Canvas 2: displays the blue-channel-only processed image.
-               Blue border to visually indicate what this canvas represents. -->
-          <canvas id="dataCanvas" width=600 height=500 style="border:3px solid blue;"></canvas>
-          <script>
-            /* Initialize canvas 2: get its drawing context and write placeholder text.
-               canvas2 and context2 are separate variables from canvas/context
-               so the two canvases don't interfere with each other. */
-            var canvas2  = document.getElementById('dataCanvas');
-            var context2 = canvas2.getContext("2d"); /* 2d context for canvas 2 */
-            context2.font = '20pt Calibri';
-            context2.fillStyle = "blue";
-            context2.fillText("Blue channel analysis will go here", 10, 20);
-          </script>
-        </div><!-- /canvas 2 container -->
-
-      </div><!-- /canvas flex container -->
-
-    </div><!-- /content -->
-
-    <!-- FOOTER: fixed to the bottom of the screen -->
-    <div data-role="footer" data-position="fixed">
-      <p>DIY Diagnostics | FRI UT Austin</p>
-    </div><!-- /footer -->
-
-  </div><!-- /page -->
-
- </body>
+</script>
+</body>
 </html>
