@@ -66,25 +66,36 @@ function analyzeImage(){
 
     let yellowPixels = 0;
     let pinkPixels = 0;
+    let validPixels = 0; // pixels that actually contain color
 
-    // scan pixels
     for(let i=0; i<pixels.length; i+=4){
+
         let r = pixels[i];
         let g = pixels[i+1];
         let b = pixels[i+2];
 
-        // detect yellow pixels
-        if(r > 180 && g > 180 && b < 150){
+        // ⭐ STEP 1 — IGNORE BACKGROUND
+        // measure how colorful the pixel is
+        let maxColor = Math.max(r,g,b);
+        let minColor = Math.min(r,g,b);
+        let colorStrength = maxColor - minColor;
+
+        // skip gray/white pixels
+        if(colorStrength < 40) continue;
+
+        validPixels++;
+
+        // ⭐ STEP 2 — DETECT YELLOW vs PINK
+        if(r > 150 && g > 150 && b < 140){
             yellowPixels++;
         }
 
-        // detect pink pixels
-        if(r > 180 && g < 150 && b > 120){
+        if(r > 170 && g < 140 && b > 120){
             pinkPixels++;
         }
     }
 
-    // overall diagnostic result
+    // ⭐ STEP 3 — RESULT
     if(pinkPixels > yellowPixels){
         resultText.innerHTML = "RESULT: POSITIVE (Pink detected)";
         resultText.style.color = "red";
@@ -93,10 +104,8 @@ function analyzeImage(){
         resultText.style.color = "green";
     }
 
-    // ⭐ TUBE COUNTER (rough estimate)
-    // assumes ~8 tubes in image
-    let totalPixels = yellowPixels + pinkPixels;
-    let pinkRatio = pinkPixels / totalPixels;
+    // ⭐ STEP 4 — TUBE ESTIMATION
+    let pinkRatio = pinkPixels / validPixels;
 
     let estimatedPositiveTubes = Math.round(pinkRatio * 8);
     let estimatedNegativeTubes = 8 - estimatedPositiveTubes;
