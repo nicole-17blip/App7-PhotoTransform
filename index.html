@@ -7,12 +7,12 @@
  This app:
  1) Lets user upload an image
  2) Reads pixels from the image
- 3) Compares RED vs GREEN color levels
+ 3) Compares RED vs yellow color levels
  4) Outputs POSITIVE / NEGATIVE result
 
  LAMP rule used:
-   Pink  = Positive  (more RED than GREEN)
-   Yellow = Negative (RED and GREEN similar)
+   Pink  = Positive  (more RED than Yellow)
+   Yellow = Negative (RED and Yellow similar)
 
  EDUCATIONAL USE ONLY – NOT A MEDICAL TOOL
 ========================================================= -->
@@ -80,7 +80,7 @@ upload.addEventListener("change", function(event){
 
 // =========================================================
 // FUNCTION: analyzeImage()
-// Reads every pixel and compares RED vs GREEN
+// Reads every pixel and compares RED vs Yellow
 // =========================================================
 function analyzeImage(){
 
@@ -100,7 +100,7 @@ function analyzeImage(){
 
     // calculate averages
     let avgRed = totalRed / pixelCount;
-    let avgGreen = totalYellow / pixelCount;
+    let avgYellow = totalYellow / pixelCount;
 
     // compare colors
     let difference = avgRed - avgYellow;
