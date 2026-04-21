@@ -274,7 +274,9 @@
                STEP 2: IMAGE PROCESSING -- EXTRACT BLUE CHANNEL
                Read every pixel from canvas 1, zero out the red
                and green channels, and write the result to canvas 2.
-               This isolates the blue signal in the image.
+               This isolates the blue signal in the image visually.
+               We also collect all three channel totals here so the
+               diagnostic math in Step 3 has accurate data to work with.
                =================================================== */
 
             /* getImageData returns an ImageData object whose .data
@@ -285,10 +287,15 @@
             var pixels = imageData.data;
             console.log("Pixel data read from canvas 1. Total values: " + pixels.length);
 
-            /* Running totals used later to compute channel averages */
-            var totalRed   = 0; /* sum of all red channel values */
-            var totalBlue  = 0; /* sum of all blue channel values */
-            var pixelCount = pixels.length / 4; /* total number of pixels */
+            /* Running totals for all three color channels.
+               We need green in addition to red and blue because the
+               key to telling PINK from YELLOW is the green channel:
+                 PINK/MAGENTA = high red, LOW green, low blue
+                 YELLOW       = high red, HIGH green, low blue        */
+            var totalRed   = 0; /* sum of all red channel values   */
+            var totalGreen = 0; /* sum of all green channel values  */
+            var totalBlue  = 0; /* sum of all blue channel values   */
+            var pixelCount = pixels.length / 4; /* total pixel count */
 
             /* Loop through every pixel, stepping by 4 (one RGBA group at a time).
                i     = red channel index
@@ -297,18 +304,16 @@
                i + 3 = alpha channel index (we leave alpha unchanged) */
             for (var i = 0; i < pixels.length; i += 4) {
 
-              /* Accumulate the original red and blue values BEFORE
-                 we zero out channels, so we can use them for analysis */
-              totalRed  += pixels[i];      /* add this pixel's red value */
-              totalBlue += pixels[i + 2];  /* add this pixel's blue value */
+              /* Accumulate ALL THREE channel values BEFORE zeroing anything,
+                 so the analysis math uses the original unmodified pixel data */
+              totalRed   += pixels[i];      /* add this pixel's red value   */
+              totalGreen += pixels[i + 1];  /* add this pixel's green value */
+              totalBlue  += pixels[i + 2];  /* add this pixel's blue value  */
 
-              /* Zero out the red channel -- no red in the blue-only view */
-              pixels[i]     = 0;
-
-              /* Zero out the green channel -- no green in the blue-only view */
-              pixels[i + 1] = 0;
-
-              /* Blue channel (pixels[i + 2]) is left unchanged */
+              /* Zero out red and green channels for the blue-only canvas 2 view */
+              pixels[i]     = 0; /* red   --> 0 */
+              pixels[i + 1] = 0; /* green --> 0 */
+              /* blue (pixels[i + 2]) is left unchanged for the visual display */
             }
             console.log("Pixel transformation complete: red and green channels removed.");
 
@@ -318,107 +323,121 @@
 
             /* ===================================================
                STEP 3: DIAGNOSTIC DETERMINATION
-               Calculate the average red and blue intensities across
-               all pixels, then compute a "blue ratio" score.
+               This is the core analysis. We use average Red, Green,
+               and Blue channel values to distinguish between the two
+               possible LAMP colorimetric results:
 
-               LAMP colorimetric test color logic:
-                 POSITIVE result --> sample turns PINK / MAGENTA
-                   (high red, low blue --> low blue ratio)
-                 NEGATIVE result --> sample stays YELLOW / ORANGE
-                   (high red, high green, low blue --> still low blue ratio)
+               HOW LAMP COLORIMETRIC RESULTS LOOK:
+                 POSITIVE --> sample turns PINK / MAGENTA
+                              RGB signature: HIGH red, LOW green, LOW blue
+                              (the dye indicator is reduced, shifting color pink)
 
-               A truer LAMP analysis looks at whether the sample is
-               more YELLOW (negative) or more PINK/MAGENTA (positive).
-               In a simplified single-image approach we use the
-               blue-to-red ratio:
-                 - If blueRatio > 0.55, the sample is relatively BLUE
-                   compared to red, which would be unusual for LAMP
-                   and may suggest a negative/clear sample.
-                 - If blueRatio < 0.45, red dominates (pink/magenta),
-                   which is more consistent with a POSITIVE LAMP result.
-                 - Values in between are marked as INCONCLUSIVE.
+                 NEGATIVE --> sample stays YELLOW / ORANGE
+                              RGB signature: HIGH red, HIGH green, LOW blue
+                              (the dye indicator stays oxidized, staying yellow)
 
-               NOTE: This is a simplified educational demonstration.
-               Real diagnostic decisions require calibrated equipment
-               and professional interpretation.
+               WHY THE OLD BLUE-ONLY APPROACH FAILED:
+               Both pink and yellow have LOW blue, so checking blue alone
+               cannot distinguish between them. The critical difference is
+               the GREEN channel -- yellow has high green, pink does not.
+
+               NEW APPROACH -- "pinkScore":
+               We compute how "pink" vs "yellow" the image is by measuring
+               how much MORE red there is compared to green.
+                 pinkScore = avgRed - avgGreen
+
+               A large positive pinkScore means red >> green --> PINK/MAGENTA
+               A pinkScore near 0 means red ≈ green --> YELLOW
+               Thresholds (tuned for typical LAMP test images):
+                 pinkScore > 40  --> POSITIVE  (clearly pink/magenta)
+                 pinkScore < 15  --> NEGATIVE  (clearly yellow)
+                 15 to 40        --> INCONCLUSIVE
                =================================================== */
 
-            /* Compute average channel intensities (0-255 scale) */
-            var avgRed  = totalRed  / pixelCount;
-            var avgBlue = totalBlue / pixelCount;
-            console.log("Average Red: "  + avgRed.toFixed(2));
-            console.log("Average Blue: " + avgBlue.toFixed(2));
+            /* Compute average channel intensities across all pixels (0-255 scale) */
+            var avgRed   = totalRed   / pixelCount;
+            var avgGreen = totalGreen / pixelCount;
+            var avgBlue  = totalBlue  / pixelCount;
+            console.log("Average Red:   " + avgRed.toFixed(2));
+            console.log("Average Green: " + avgGreen.toFixed(2));
+            console.log("Average Blue:  " + avgBlue.toFixed(2));
 
-            /* blueRatio = blue / (red + blue) gives a 0-to-1 score.
-               Higher = more blue relative to red.
-               Lower  = more red relative to blue (pink/magenta). */
-            var blueRatio = avgBlue / (avgRed + avgBlue + 0.001);
-            /* 0.001 added to denominator to prevent divide-by-zero if
-               both channels are somehow zero */
-
-            console.log("Blue Ratio Score: " + blueRatio.toFixed(4));
+            /* pinkScore = how much red exceeds green.
+               Pink/magenta images have high red and suppressed green.
+               Yellow images have both red AND green elevated equally. */
+            var pinkScore = avgRed - avgGreen;
+            console.log("Pink Score (Red - Green): " + pinkScore.toFixed(2));
 
             /* -----------------------------------------------
                DETERMINE RESULT LABEL AND COLOR
-               Thresholds chosen for educational demonstration:
-                 blueRatio < 0.40  --> POSITIVE (pink/magenta dominant)
-                 blueRatio > 0.60  --> NEGATIVE (blue/cool tones dominant)
-                 0.40 - 0.60       --> INCONCLUSIVE
+               Thresholds based on LAMP colorimetric color logic:
+                 pinkScore > 40  --> POSITIVE  (red dominates over green = pink)
+                 pinkScore < 15  --> NEGATIVE  (red and green balanced = yellow)
+                 15 to 40        --> INCONCLUSIVE (mixed or ambiguous image)
                ----------------------------------------------- */
-            var determination; /* result text */
-            var resultColor;   /* color used to style the result label */
-            var confidence;    /* 0-100 percentage for the visual bar */
+            var determination; /* final result text shown to the user */
+            var resultColor;   /* CSS color used to style the result label */
+            var confidence;    /* 0-100 confidence percentage for the bar */
 
-            if (blueRatio < 0.40) {
-              /* Red channel dominates -- consistent with pink/magenta LAMP positive */
+            if (pinkScore > 40) {
+              /* Red significantly exceeds green -- image is pink/magenta.
+                 This matches the LAMP POSITIVE color signature. */
               determination = "POSITIVE";
-              resultColor   = "#cc0000"; /* red to indicate positive */
-              /* confidence scaled so lower blueRatio = higher confidence positive */
-              confidence = Math.round((0.40 - blueRatio) / 0.40 * 100);
-            } else if (blueRatio > 0.60) {
-              /* Blue channel dominates -- consistent with a clear/negative sample */
-              determination = "NEGATIVE";
-              resultColor   = "#006600"; /* green to indicate negative */
-              /* confidence scaled so higher blueRatio = higher confidence negative */
-              confidence = Math.round((blueRatio - 0.60) / 0.40 * 100);
-            } else {
-              /* Neither channel clearly dominates -- inconclusive result */
-              determination = "INCONCLUSIVE";
-              resultColor   = "#996600"; /* amber/orange for inconclusive */
-              /* confidence inversely related to how close blueRatio is to 0.50 */
-              confidence = Math.round(Math.abs(blueRatio - 0.50) / 0.10 * 50);
-            }
+              resultColor   = "#cc0000"; /* red label for positive result */
+              /* confidence scales with how far pinkScore exceeds the 40 threshold.
+                 Divide by 60 so a pinkScore of 100 gives ~100% confidence. */
+              confidence = Math.min(100, Math.round((pinkScore - 40) / 60 * 100));
 
-            /* Cap confidence at 100% in case of floating-point overshoot */
-            if (confidence > 100) { confidence = 100; }
+            } else if (pinkScore < 15) {
+              /* Red and green are close in value -- image is yellow/orange.
+                 This matches the LAMP NEGATIVE color signature. */
+              determination = "NEGATIVE";
+              resultColor   = "#007700"; /* green label for negative result */
+              /* confidence scales with how far pinkScore is below 15.
+                 A pinkScore of 0 (perfectly balanced red/green) = very confident. */
+              confidence = Math.min(100, Math.round((15 - pinkScore) / 15 * 100));
+
+            } else {
+              /* pinkScore is in the ambiguous middle zone (15-40).
+                 The image may contain a mix of pink and yellow tubes,
+                 or the lighting/color balance makes it hard to classify. */
+              determination = "INCONCLUSIVE";
+              resultColor   = "#996600"; /* amber label for inconclusive */
+              /* confidence = how close we are to either edge of the zone */
+              confidence = Math.min(100, Math.round(Math.max(
+                (pinkScore - 15) / 25,   /* closeness to POSITIVE threshold */
+                (40 - pinkScore) / 25    /* closeness to NEGATIVE threshold */
+              ) * 60));
+            }
 
             console.log("Determination: " + determination + " | Confidence: " + confidence + "%");
 
             /* -----------------------------------------------
                STEP 4: DISPLAY RESULTS TO THE USER
-               Populate the resultsBox HTML with the computed
-               values and make the box visible.
+               Fill in the resultsBox HTML elements with the
+               computed values, then make the box visible.
                ----------------------------------------------- */
 
-            /* Update the determination label text and color */
+            /* Update the large determination label with result text and color */
             var detLabel = document.getElementById('determinationLabel');
             detLabel.innerHTML = "Result: " + determination;
             detLabel.style.color = resultColor;
 
-            /* Fill in the numeric readout lines */
-            document.getElementById('avgRedDisplay').innerHTML   = "Avg Red Intensity:  " + avgRed.toFixed(1)  + " / 255";
-            document.getElementById('avgBlueDisplay').innerHTML  = "Avg Blue Intensity: " + avgBlue.toFixed(1) + " / 255";
-            document.getElementById('blueRatioDisplay').innerHTML = "Blue Ratio Score:   " + (blueRatio * 100).toFixed(1) + "%";
-            document.getElementById('confidenceDisplay').innerHTML = "Confidence:         " + confidence + "%";
+            /* Fill in the per-channel numeric readout lines */
+            document.getElementById('avgRedDisplay').innerHTML   = "Avg Red Intensity:   " + avgRed.toFixed(1)   + " / 255";
+            document.getElementById('avgGreenDisplay').innerHTML = "Avg Green Intensity: " + avgGreen.toFixed(1) + " / 255";
+            document.getElementById('avgBlueDisplay').innerHTML  = "Avg Blue Intensity:  " + avgBlue.toFixed(1)  + " / 255";
+            document.getElementById('pinkScoreDisplay').innerHTML = "Pink Score (R-G):    " + pinkScore.toFixed(1) + "  (>40 = positive, <15 = negative)";
+            document.getElementById('confidenceDisplay').innerHTML = "Confidence:          " + confidence + "%";
 
-            /* Animate the confidence bar fill */
-            document.getElementById('confidenceFill').style.width  = confidence + "%";
+            /* Animate the confidence progress bar fill width and color */
+            document.getElementById('confidenceFill').style.width      = confidence + "%";
             document.getElementById('confidenceFill').style.background = resultColor;
 
-            /* Make the results box visible (was display:none by default) */
+            /* Make the results box visible (it starts as display:none) */
             document.getElementById('resultsBox').style.display = "block";
 
-            /* Update the status message now that analysis is done */
+            /* Update the status message to confirm analysis is done */
             messageDisplayArea.innerHTML = "Analysis complete.";
 
           } /* end of img.onload */
@@ -488,10 +507,12 @@
         <strong>--- DIAGNOSTIC READOUT ---</strong><br>
         <!-- avgRedDisplay shows the computed average red channel value -->
         <span id="avgRedDisplay"></span><br>
+        <!-- avgGreenDisplay shows the computed average green channel value -->
+        <span id="avgGreenDisplay"></span><br>
         <!-- avgBlueDisplay shows the computed average blue channel value -->
         <span id="avgBlueDisplay"></span><br>
-        <!-- blueRatioDisplay shows the blue/(red+blue) ratio as a percent -->
-        <span id="blueRatioDisplay"></span><br>
+        <!-- pinkScoreDisplay: Red minus Green is the key LAMP color metric -->
+        <span id="pinkScoreDisplay"></span><br>
         <!-- confidenceDisplay shows how confident the determination is -->
         <span id="confidenceDisplay"></span>
 
