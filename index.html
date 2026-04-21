@@ -63,56 +63,66 @@ function analyzeImage(){
 
     const imageData = ctx.getImageData(0,0,500,350);
     const pixels = imageData.data;
+    const width = 500;
+    const height = 350;
 
     let yellowPixels = 0;
-    let pinkPixels = 0;
-    let validPixels = 0; // pixels that actually contain color
+    let validPixels = 0;
 
-    for(let i=0; i<pixels.length; i+=4){
+    // array to track yellow per column (tube finder!)
+    let yellowColumnHits = new Array(width).fill(0);
 
-        let r = pixels[i];
-        let g = pixels[i+1];
-        let b = pixels[i+2];
+    // scan every pixel
+    for(let y=0; y<height; y++){
+        for(let x=0; x<width; x++){
 
-        // ⭐ STEP 1 — IGNORE BACKGROUND
-        // measure how colorful the pixel is
-        let maxColor = Math.max(r,g,b);
-        let minColor = Math.min(r,g,b);
-        let colorStrength = maxColor - minColor;
+            let i = (y * width + x) * 4;
+            let r = pixels[i];
+            let g = pixels[i+1];
+            let b = pixels[i+2];
 
-        // skip gray/white pixels
-        if(colorStrength < 40) continue;
+            // ignore gray/white background
+            let colorStrength = Math.max(r,g,b) - Math.min(r,g,b);
+            if(colorStrength < 40) continue;
 
-        validPixels++;
+            validPixels++;
 
-        // ⭐ STEP 2 — DETECT YELLOW vs PINK
-        if(r > 150 && g > 150 && b < 140){
-            yellowPixels++;
-        }
-
-        if(r > 170 && g < 140 && b > 120){
-            pinkPixels++;
+            // YELLOW DETECTION (POSITIVE)
+            if(r > 160 && g > 160 && b < 140){
+                yellowPixels++;
+                yellowColumnHits[x]++; // mark this column as yellow
+            }
         }
     }
 
-    // ⭐ STEP 3 — RESULT
-    if(pinkPixels > yellowPixels){
-        resultText.innerHTML = "RESULT: POSITIVE (Pink detected)";
-        resultText.style.color = "red";
-    } else {
-        resultText.innerHTML = "RESULT: NEGATIVE (Yellow detected)";
+    // ---------------------------
+    // DETERMINE OVERALL RESULT
+    // ---------------------------
+    if(yellowPixels > validPixels * 0.05){
+        resultText.innerHTML = "RESULT: POSITIVE (Yellow detected)";
         resultText.style.color = "green";
+    } else {
+        resultText.innerHTML = "RESULT: NEGATIVE (No yellow detected)";
+        resultText.style.color = "red";
     }
 
-    // ⭐ STEP 4 — TUBE ESTIMATION
-    let pinkRatio = pinkPixels / validPixels;
+    // ---------------------------
+    // TUBE COUNTER (column scan)
+    // ---------------------------
+    let tubeCount = 0;
+    let insideTube = false;
 
-    let estimatedPositiveTubes = Math.round(pinkRatio * 8);
-    let estimatedNegativeTubes = 8 - estimatedPositiveTubes;
+    for(let x=0; x<width; x++){
+        if(yellowColumnHits[x] > 20 && !insideTube){
+            tubeCount++;
+            insideTube = true;
+        }
+        if(yellowColumnHits[x] <= 20){
+            insideTube = false;
+        }
+    }
 
-    tubeText.innerHTML =
-        "Estimated Positive Tubes: " + estimatedPositiveTubes +
-        " | Estimated Negative Tubes: " + estimatedNegativeTubes;
+    tubeText.innerHTML = "Estimated POSITIVE Tubes: " + tubeCount;
 }
 
 </script>
