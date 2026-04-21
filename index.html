@@ -89,29 +89,29 @@ function analyzeImage(){
     const pixels = imageData.data;
 
     let totalRed = 0;
-    let totalGreen = 0;
+    let totalYellow = 0;
     let pixelCount = pixels.length / 4;
 
     // loop through every pixel
     for(let i=0; i<pixels.length; i+=4){
         totalRed += pixels[i];     // red channel
-        totalGreen += pixels[i+1]; // green channel
+        totalYellow += pixels[i+1]; // yellow channel
     }
 
     // calculate averages
     let avgRed = totalRed / pixelCount;
-    let avgGreen = totalGreen / pixelCount;
+    let avgGreen = totalYellow / pixelCount;
 
     // compare colors
-    let difference = avgRed - avgGreen;
-
+    let difference = avgRed - avgYellow;
+//pink to yellow = postive amplification meaning THERE Is a presence 
     // determine result
     if(difference > 20){
-        resultText.innerHTML = "RESULT: POSITIVE (Pink detected)";
+        resultText.innerHTML = "RESULT: NEGATIVE (Pink detected)";
         resultText.style.color = "red";
     } else {
-        resultText.innerHTML = "RESULT: NEGATIVE (Yellow detected)";
-        resultText.style.color = "green";
+        resultText.innerHTML = "RESULT: POSITIVE (Yellow detected)";
+        resultText.style.color = "Yellow";
     }
 }
 
