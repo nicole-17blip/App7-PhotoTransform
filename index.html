@@ -1,25 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 
-<!-- =========================================================
- SIMPLE LAMP COLOR ANALYZER (GitHub Version)
- -------------------------------------------------------------
- This app:
- 1) Lets user upload an image
- 2) Reads pixels from the image
- 3) Compares RED vs yellow color levels
- 4) Outputs POSITIVE / NEGATIVE result
-
- LAMP rule used:
-   Pink  = Positive  (more RED than Yellow)
-   Yellow = Negative (RED and Yellow similar)
-
- EDUCATIONAL USE ONLY – NOT A MEDICAL TOOL
-========================================================= -->
+<!-- SIMPLE LAMP ANALYZER — FINAL VERSION
+This app:
+• Uploads image
+• Detects pink vs yellow pixels
+• Estimates number of positive tubes
+• Displays result
+EDUCATIONAL ONLY
+-->
 
 <head>
 <meta charset="UTF-8">
-<title>Simple LAMP Analyzer</title>
+<title>LAMP Analyzer</title>
 
 <style>
   body { font-family: Arial; text-align:center; margin:40px; }
@@ -32,41 +25,31 @@
 <h1>LAMP Image Analyzer</h1>
 <p>Upload a photo of test tubes.</p>
 
-<!-- IMAGE UPLOAD BUTTON -->
 <input type="file" id="upload">
 <br><br>
 
-<!-- CANVAS TO SHOW IMAGE -->
 <canvas id="canvas" width="500" height="350"></canvas>
 
 <h2 id="result"></h2>
-<h3 id+"tubeCount"></h3>
+<h3 id="tubeCount"></h3>
 
 <script>
-// =========================================================
-// MAIN PROGRAM
-// Runs when user uploads an image
-// =========================================================
-
-// get HTML elements
+// grab elements
 const upload = document.getElementById("upload");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const resultText = document.getElementById("result");
 const tubeText = document.getElementById("tubeCount");
 
-// when user selects an image
+// load image
 upload.addEventListener("change", function(event){
-    // get uploaded file
     const file = event.target.files[0];
     const reader = new FileReader();
-    // load image into browser
+
     reader.onload = function(e){
         const img = new Image();
         img.onload = function(){
-            // draw image onto canvas
             ctx.drawImage(img, 0, 0, 500, 350);
-            // analyze colors after drawing
             analyzeImage();
         }
         img.src = e.target.result;
@@ -75,55 +58,52 @@ upload.addEventListener("change", function(event){
 });
 
 
-// =========================================================
-// FUNCTION: analyzeImage()
-// Reads every pixel and compares RED vs Yellow
-// =========================================================
+// MAIN ANALYSIS FUNCTION
 function analyzeImage(){
 
-    // get pixel data from canvas
     const imageData = ctx.getImageData(0,0,500,350);
     const pixels = imageData.data;
 
     let yellowPixels = 0;
     let pinkPixels = 0;
 
-    // loop through every pixel
+    // scan pixels
     for(let i=0; i<pixels.length; i+=4){
-      let r = pixels[i]; //red
-      let g = pixels[i+1];  //green
-      let b = pixels[i+2]; //blue
+        let r = pixels[i];
+        let g = pixels[i+1];
+        let b = pixels[i+2];
 
-    //yellow=high red + high green
-      if(r > 180 && g > 180 && b < 150){
-         yellowPixels++;
+        // detect yellow pixels
+        if(r > 180 && g > 180 && b < 150){
+            yellowPixels++;
+        }
+
+        // detect pink pixels
+        if(r > 180 && g < 150 && b > 120){
+            pinkPixels++;
+        }
     }
 
-    //pink = high red + low green
-    if(r > 180 && g < 150 && b > 120){
-         pinkPixels++;
+    // overall diagnostic result
+    if(pinkPixels > yellowPixels){
+        resultText.innerHTML = "RESULT: POSITIVE (Pink detected)";
+        resultText.style.color = "red";
+    } else {
+        resultText.innerHTML = "RESULT: NEGATIVE (Yellow detected)";
+        resultText.style.color = "green";
     }
-}
 
-   // compare counts
- if(pinkPixels > yellowPixels){
-     resultText.innerHTML = "RESULT: POSITIVE (Pink detected)";
-     resultText.style.color = "red";
-   } else {
-     resultText.innerHTML = "RESULT: NEGATIVE (YELLOW DETECTED)";
-     resultText.style.color = "green";
-}
- 
-  let totalPixels = yellowPixels + pinkPixels;
-  let pinkRatio = pinkPixels / totalPixels;
+    // ⭐ TUBE COUNTER (rough estimate)
+    // assumes ~8 tubes in image
+    let totalPixels = yellowPixels + pinkPixels;
+    let pinkRatio = pinkPixels / totalPixels;
 
-  let estimatedPositiveTubes = Math.round(pinkRatio * 8);
-  let estimatedNegativeTubes = 8 - estimatedPositiveTubes;
+    let estimatedPositiveTubes = Math.round(pinkRatio * 8);
+    let estimatedNegativeTubes = 8 - estimatedPositiveTubes;
 
- tubeText.innerHTML =
+    tubeText.innerHTML =
         "Estimated Positive Tubes: " + estimatedPositiveTubes +
         " | Estimated Negative Tubes: " + estimatedNegativeTubes;
-
 }
 
 </script>
